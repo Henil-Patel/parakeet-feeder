@@ -4,7 +4,6 @@ import threading
 
 HOST = ""
 PORT = 65432
-
 class Server():
 	def __init__(self, host=None, port=None, connections):
 		self.stored_connections = dict()
@@ -18,22 +17,42 @@ class Server():
 			self.port = PORT
 	
 		print("Initializing socket object")
-		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		print("Binding to {}:{}" .format(self.host, self.port))
-		self.server.bind((self.host, self.port))
+		self.server_socket.bind((self.host, self.port))
 	
 	# Helpers
 	def stash_connection_data(self, conn_data):
 		self.stored_connections.update({conn_data[1]: conn_data[0]})
+		# Write this to a DB
 	
-	
+	def listener(self, input_command):
+		return
+		
 	# Main
 	def go(self):
-		self.server.listen(self.connections)
+		self.server_socket.listen(self.connections)
+		self.server_socket.blocking(False)
 		while self.run:
-			conn, addr = self.server.accept()
-			self.stash_connection_data((conn, addr))
+			if len(self.stored_connections) < self.connections:
+				
+				# These are client connection data
+				conn, addr = self.server_socket.accept()
+				conn.sendall(b"Welcome to parakeet feeder!")
+				
+				# Create connection thread
+				t = threading.Thread(target = self.listener(), args = (conn, addr))
+				self.stash_connection_data((conn, addr, t))
+				
+				
+			else:
+				print("All connections are currently being used")
+			
 			
 		
+if __name__() == "__main__":
+	connections = 5
+	obj1 = Server(connections)
+	obj1.go()
 	
 

@@ -23,10 +23,13 @@ class Server():
 	
 	# Helpers
 	def stash_connection_data(self, conn_data):
-		self.stored_connections.update({conn_data[1]: conn_data[0]})
+		connection = conn_data[0]
+		address = conn_data[1]
+		connection_thread = conn_data[2]
+		self.stored_connections.update({address: {connection: connection_thread}})
 		# Write this to a DB
 	
-	def listener(self, input_command):
+	def listener(self, connection, address):
 		return
 		
 	# Main
@@ -43,6 +46,7 @@ class Server():
 				# Create connection thread
 				t = threading.Thread(target = self.listener(), args = (conn, addr))
 				self.stash_connection_data((conn, addr, t))
+				
 				
 				
 			else:

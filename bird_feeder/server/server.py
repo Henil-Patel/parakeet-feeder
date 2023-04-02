@@ -1,31 +1,43 @@
 import socket
 import logging
 import threading
+import queue
 
 HOST = "127.0.0.1"
 PORT = 65432
 
 class CommandHandler():
-	def __init__(self, connection, address):
+	def __init__(self, connection, address, message_queue: queue.Queue):
 		self.connection = connection
 		self.address = address 
+		self.rx = None
+		self.msg = message_queue
+		self.size = self.msg.qsize()
 		self.main()
 	
 	def main(self):
-		self.listen()
-		self.process()
-		self.respond()
+		while True:
+			self.listen()
+			self.respond()
 
 	def listen(self):
 		print("Started listener thread for address : {}" .format(self.address))
-		while True:
-			try:
-				self.connection.sendall(b"\n[127.0.0.1]:")
-			except BrokenPipeError as e:
-				print("Connection broken!")
-				break
-			data = self.connection.recv(1024)
-			print("[{}]Processing data: {}" .format(self.address[0], data))
+		try:
+			self.connection.sendall(b"\n[127.0.0.1]:")
+		except BrokenPipeError as e:
+			print("Connection broken!")
+		self.rx = self.connection.recv(1024)
+		print("[{}]Pushing to queue: {}" .format(self.address[0], self.rx))
+		self.msg.put_nowait({"id" : self.connection, "data": self.rx})
+
+	def respond(self):
+		if abs(self.msg.qsize() - self.size) == 0:
+			print("yo")
+		else:
+			msg = self.msg.get()
+			print(msg)
+ 
+	
 class Server():
 	def __init__(self, host, port, connections):
 		self.stored_connections = dict()
@@ -33,6 +45,7 @@ class Server():
 		self.connections = connections
 		self.host = host
 		self.port = port
+		self.msgq = queue.Queue()
 	
 		print("Initializing socket object")
 		self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -55,7 +68,8 @@ class Server():
 	# Main
 	def go(self):
 		self.server_socket.listen(self.connections)
-		
+		p = threading.Thread(target = Processor, args = (self.msgq,))
+		p.start()
 		while self.run:
 			if len(self.stored_connections) < self.connections:
 				# These are client connection data
@@ -63,12 +77,27 @@ class Server():
 				conn.sendall(b"Welcome to parakeet feeder!\n")
 				print("Got connection from {}".format(addr))
 				# Create connection thread
-				t = threading.Thread(target = CommandHandler, args = (conn, addr))
+				t = threading.Thread(target = CommandHandler, args = (conn, addr, self.msgq))
 				self.stash_connection_data((conn, addr, t, False))
 				
 			else:
 				print("All connections are currently being used")
 				break
+
+class Processor():
+	def __init__(self, q: queue.Queue):
+		self.q = q
+		self.size = self.q.qsize()
+		self.on_rx()
+
+	def on_rx(self):
+		while True:
+			if abs(self.q.qsize() - self.size) == 0:
+				continue
+			else:
+				msg: dict = self.q.get()
+				self.q.put({"id": msg.get("id"), "data": "processed"})
+
 			
 			
 		

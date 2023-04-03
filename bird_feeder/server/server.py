@@ -16,23 +16,29 @@ class CommandHandler():
 		self.main()
 	
 	def main(self):
+		print("Started listener thread for address : {}" .format(self.address))
 		while True:
-			self.listen()
+			try:
+				self.listen()
+			except BrokenPipeError as e:
+				print("Listener connection broken. Exiting...")
+				break
 			self.respond()
 
+				
 	def listen(self):
-		print("Started listener thread for address : {}" .format(self.address))
 		try:
 			self.connection.sendall(b"\n[127.0.0.1]:")
+			self.rx = self.connection.recv(1024)
+			print("[{}] Got message: {}" .format(self.address[0], self.rx))
+			self.msg.put_nowait({"id" : self.connection, "data": self.rx})
 		except BrokenPipeError as e:
-			print("Connection broken!")
-		self.rx = self.connection.recv(1024)
-		print("[{}]Pushing to queue: {}" .format(self.address[0], self.rx))
-		self.msg.put_nowait({"id" : self.connection, "data": self.rx})
+			raise e
+		
 
 	def respond(self):
 		if abs(self.msg.qsize() - self.size) == 0:
-			print("yo")
+			print("No new message")
 		else:
 			msg = self.msg.get()
 			print(msg)

@@ -32,8 +32,8 @@ class CommandHandler():
 					break
 				self.respond()
 		except ConnectionResetError:
-			logging.error("Connection reset")
-			
+			logging.error("Connection shutdown.")
+
 
 				
 	def listen(self):
